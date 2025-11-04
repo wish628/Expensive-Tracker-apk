@@ -50,7 +50,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install buildozer==1.5.0
           pip install -r requirements.txt
-          pip install Cython
+          # pin Cython to 0.29.x because some python-for-android recipes (pyjnius) are
+          # incompatible with Cython 3.x
+          pip install Cython==0.29.34
           pip install polib
 
       - name: Compile translations
