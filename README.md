@@ -84,6 +84,8 @@ Notes:
 - CI builds are long-running (first run downloads Android SDK/NDK and toolchains) and may require a runner timeout increase.
 - The workflow file is `.github/workflows/build-apk.yml` in the repository.
 
+CI trigger: this file was edited automatically to trigger a CI build for the Android APK.
+
 ### Installing the APK
 
 You can install the APK on your Android device by:
