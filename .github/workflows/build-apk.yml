@@ -63,6 +63,10 @@ jobs:
           BUILD_IS_CI: '1'
         run: |
           source .venv/bin/activate
+          # Accept Android SDK licenses non-interactively (if sdkmanager exists)
+          if [ -x "$HOME/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager" ]; then
+            yes | "$HOME/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager" --licenses || true
+          fi
           # Ensure buildozer picks up the repo root and build only arm64-v8a for speed
           buildozer -v android debug || buildozer android debug
 
