@@ -166,9 +166,9 @@ android.ndk = 25b
 # see https://developer.android.com/studio/build/shrink-code#packaging-dalvikdex
 #android.add_packaging_options =
 
-# (str) Android arch to build for (only applicable for android_new target)
-# This can be any of armeabi-v7a, arm64-v8a, x86, or x86_64
-android.arch = arm64-v8a
+# (list) Android archs to build for (only applicable for android_new target)
+# This should be a comma-separated list using one or more of: armeabi-v7a, arm64-v8a, x86, x86_64
+android.archs = arm64-v8a
 
 # (bool) If True, then skip trying to update the Android sdk
 # This can be useful to avoid excess Internet downloads or save time
@@ -324,8 +324,8 @@ github
 # (str) Add packaging options
 #android.add_packaging_options =
 
-# (str) Arch
-#android.arch = arm64-v8a
+# (list) Archs
+#android.archs = arm64-v8a
 
 # (str) Skip update
 #android.skip_update = False
