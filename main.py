@@ -9,6 +9,9 @@ from kivy.uix.popup import Popup
 from kivy.uix.label import Label
 from kivy.properties import ObjectProperty
 from kivy.core.text import LabelBase
+
+# Register the Amharic font
+LabelBase.register(name='AmharicFont', fn_regular='fonts/NotoSansEthiopic-Regular.ttf')
 from kivymd.app import MDApp
 from kivymd.uix.list import OneLineListItem, TwoLineListItem
 from kivymd.uix.button import MDRaisedButton, MDFlatButton
@@ -305,6 +308,25 @@ class ExpenseTrackerApp(MDApp):
         main_screen.ids.add_button.text = ADD_EXPENSE
         main_screen.ids.clear_button.text = _("clear")
         main_screen.ids.expense_list_label.text = EXPENSE_LIST
+        
+        # Apply Amharic font if current language is Amharic
+        if current_language == 'am':
+            main_screen.ids.title_label.font_name = 'AmharicFont'
+            main_screen.ids.amount.font_name = 'AmharicFont'
+            main_screen.ids.category.font_name = 'AmharicFont'
+            main_screen.ids.note.font_name = 'AmharicFont'
+            main_screen.ids.add_button.font_name = 'AmharicFont'
+            main_screen.ids.clear_button.font_name = 'AmharicFont'
+            main_screen.ids.expense_list_label.font_name = 'AmharicFont'
+        else:
+            # Reset to default font for other languages
+            main_screen.ids.title_label.font_name = 'Roboto'
+            main_screen.ids.amount.font_name = 'Roboto'
+            main_screen.ids.category.font_name = 'Roboto'
+            main_screen.ids.note.font_name = 'Roboto'
+            main_screen.ids.add_button.font_name = 'Roboto'
+            main_screen.ids.clear_button.font_name = 'Roboto'
+            main_screen.ids.expense_list_label.font_name = 'Roboto'
         
         # Update total label with current value
         current_text = main_screen.ids.total_label.text
