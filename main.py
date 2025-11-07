@@ -1,7 +1,10 @@
-import os
-import gettext
 import json
 import datetime
+import gettext
+import os
+from kivy.utils import platform # Import platform
+from kivy.app import App # Import App for Android path resolution
+from kivy.logger import Logger # Import Kivy's logger
 from kivy.lang import Builder
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.boxlayout import BoxLayout
@@ -9,141 +12,61 @@ from kivy.uix.popup import Popup
 from kivy.uix.label import Label
 from kivy.properties import ObjectProperty
 from kivy.core.text import LabelBase
-from kivy.metrics import dp
-
-# Register the Amharic font
-LabelBase.register(name='AmharicFont', fn_regular=os.path.join(os.path.dirname(__file__), 'fonts', 'NotoSansEthiopic-Regular.ttf'))
 from kivymd.app import MDApp
 from kivymd.uix.list import OneLineListItem, TwoLineListItem
-from kivymd.uix.button import MDRaisedButton, MDFlatButton, MDIconButton
+from kivymd.uix.button import MDRaisedButton, MDFlatButton
 from kivymd.uix.dialog import MDDialog
 from kivymd.uix.menu import MDDropdownMenu
-from kivymd.uix.selectioncontrol import MDCheckbox
-from kivymd.uix.snackbar import MDSnackbar
 from tinydb import TinyDB, Query
 
-# Global variables for language selection
-current_language = 'en'
+# Set up gettext for internationalization
+current_language = 'en' # Default language
 
-# Configure gettext for internationalization
-locales_dir = os.path.join(os.path.dirname(__file__), 'locales')
+# Use Kivy's app.directory for a more reliable path on Android
+if platform == 'android':
+    # On Android, app.directory points to the application's data directory
+    # which is where Buildozer places the app files.
+    app_instance = App.get_running_app() if App.get_running_app() else None
+    if app_instance:
+        localedir = os.path.join(app_instance.directory, 'locales')
+    else:
+        # Fallback if app is not yet running (e.g., during initial import)
+        localedir = os.path.join(os.path.dirname(__file__), 'locales')
+        Logger.warning("Translation: App instance not available, falling back to __file__ path.")
+else:
+    localedir = os.path.join(os.path.dirname(__file__), 'locales')
 
-# Dictionary to hold translation functions for each language
-translators = {}
+Logger.info(f"Translation: Resolved localedir: {localedir}")
 
-# Initialize translations for each language
-def init_translations():
-    global translators
-    if os.path.exists(locales_dir):
-        # English translator
-        try:
-            en_translator = gettext.translation('app', locales_dir, languages=['en'])
-            translators['en'] = en_translator.gettext
-        except:
-            # Fallback to dummy translator
-            # Try JSON fallback (locales/en/LC_MESSAGES/app.json)
-            json_path = os.path.join(locales_dir, 'en', 'LC_MESSAGES', 'app.json')
-            if os.path.exists(json_path):
-                try:
-                    with open(json_path, 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                    translators['en'] = lambda s, d=data: d.get(s, s)
-                except Exception:
-                    translators['en'] = lambda x: x
-            else:
-                translators['en'] = lambda x: x
-            
-        # Amharic translator
-        try:
-            am_translator = gettext.translation('app', locales_dir, languages=['am'])
-            translators['am'] = am_translator.gettext
-        except:
-            # Try JSON fallback (locales/am/LC_MESSAGES/app.json)
-            json_path = os.path.join(locales_dir, 'am', 'LC_MESSAGES', 'app.json')
-            if os.path.exists(json_path):
-                try:
-                    with open(json_path, 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                    translators['am'] = lambda s, d=data: d.get(s, s)
-                except Exception:
-                    translators['am'] = lambda x: x
-            else:
-                translators['am'] = lambda x: x
-            
-        # Oromo translator
-        try:
-            om_translator = gettext.translation('app', locales_dir, languages=['om'])
-            translators['om'] = om_translator.gettext
-        except:
-            # Try JSON fallback (locales/om/LC_MESSAGES/app.json)
-            json_path = os.path.join(locales_dir, 'om', 'LC_MESSAGES', 'app.json')
-            if os.path.exists(json_path):
-                try:
-                    with open(json_path, 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                    translators['om'] = lambda s, d=data: d.get(s, s)
-                except Exception:
-                    translators['om'] = lambda x: x
-            else:
-                translators['om'] = lambda x: x
-
-# Initialize translations
-init_translations()
-
-# Create a global translation function
-def _(message):
-    global current_language, translators
-    try:
-        if current_language in translators:
-            result = translators[current_language](message)
-            return result
-        else:
-            return message
-    except Exception as e:
-        # Return the original message if translation fails
-        return message
-
-# Pre-translate strings
-def update_translations():
-    global EXPENSE_TRACKER, AMOUNT, CATEGORY, NOTE, ADD_EXPENSE, TOTAL, DATE, EDIT, DELETE
-    global LANGUAGE, ENGLISH, AMHARIC, OROMO, EXPENSE_LIST, NO_EXPENSES, SELECT_LANGUAGE, CLEAR
-    global FILL_ALL_FIELDS, OK, CANCEL, DELETE_ALL, NO_EXPENSES_SELECTED, EXPENSE_DELETED, EXPENSES_DELETED
-    EXPENSE_TRACKER = _("expense_tracker")
-    AMOUNT = _("amount")
-    CATEGORY = _("category")
-    NOTE = _("note")
-    ADD_EXPENSE = _("add_expense")
-    TOTAL = _("total")
-    DATE = _("date")
-    EDIT = _("edit")
-    DELETE = _("delete")
-    LANGUAGE = _("language")
-    ENGLISH = _("english")
-    AMHARIC = _("amharic")
-    OROMO = _("oromo")
-    EXPENSE_LIST = _("expense_list")
-    NO_EXPENSES = _("no_expenses")
-    SELECT_LANGUAGE = _("select_language")
-    CLEAR = _("clear")
-    FILL_ALL_FIELDS = _("fill_all_fields")
-    OK = _("ok")
-    CANCEL = _("cancel")
-    DELETE_ALL = _("delete_all")
-    NO_EXPENSES_SELECTED = _("no_expenses_selected")
-    EXPENSE_DELETED = _("expense_deleted")
-    EXPENSES_DELETED = _("expenses_deleted")
+try:
+    # Attempt to load translations for all supported languages
+    # This is done to ensure all translations are available for update_translations
+    # and to prevent errors if a language is selected before its .mo is loaded.
+    en_lang = gettext.translation('app', localedir, languages=['en'])
+    am_lang = gettext.translation('app', localedir, languages=['am'])
+    om_lang = gettext.translation('app', localedir, languages=['om'])
     
-    # Debug print to see what translations are loaded
-    print(f"=== Language Switch Debug ===")
-    print(f"Current language: {current_language}")
-    print(f"EXPENSE_TRACKER: '{EXPENSE_TRACKER}'")
-    print(f"AMOUNT: '{AMOUNT}'")
-    print(f"CATEGORY: '{CATEGORY}'")
-    print(f"ADD_EXPENSE: '{ADD_EXPENSE}'")
-    print(f"TOTAL: '{TOTAL}'")
+    # Initialize the global translation function _()
+    # We'll re-bind this when the language changes
+    _ = en_lang.gettext 
+    Logger.info("Translation: Initial English translations loaded.")
 
-# Initial translation
-update_translations()
+except Exception as e:
+    Logger.error(f"Translation: Error loading initial translations: {e}")
+    # Fallback if translations fail to load
+    _ = lambda s: s # No-op translation
+
+def update_translations():
+    global _
+    try:
+        # Re-bind the global _ function to the currently selected language
+        lang_obj = gettext.translation('app', localedir, languages=[current_language])
+        lang_obj.install() # This makes _() available globally
+        _ = lang_obj.gettext
+        Logger.info(f"Translation: Translations updated to: {current_language}")
+    except Exception as e:
+        Logger.error(f"Translation: Error updating translations for {current_language}: {e}")
+        _ = lambda s: s # Fallback
 
 KV = """
 <MainScreen>:
@@ -224,17 +147,9 @@ KV = """
             size_hint_y: None
             height: dp(30)
         
-        MDRaisedButton:
-            id: delete_selected_button
-            text: "Delete Selected"
-            on_release: app.confirm_delete_expense()
-            size_hint_x: 1.0
-        
         ScrollView:
             MDList:
                 id: expense_list
-                # Add a delete button to each item
-                # This will be dynamically added in Python
 """
 
 db = TinyDB("expenses.json")
@@ -245,7 +160,6 @@ class MainScreen(Screen):
 class ExpenseTrackerApp(MDApp):
     dialog = None
     language_menu = None
-    selected_expenses = ObjectProperty([])
     
     def build(self):
         self.sm = ScreenManager()
@@ -297,24 +211,24 @@ class ExpenseTrackerApp(MDApp):
         )
         self.language_menu.open()
 
+    def load_all_translations(self):
+        """Load all translations for the app"""
+        global en_lang, am_lang, om_lang
+        try:
+            en_lang = gettext.translation('app', localedir, languages=['en'])
+            am_lang = gettext.translation('app', localedir, languages=['am'])
+            om_lang = gettext.translation('app', localedir, languages=['om'])
+            Logger.info("Translation: All translation objects loaded successfully.")
+        except Exception as e:
+            Logger.error(f"Translation: Error in load_all_translations: {e}")
+
     def set_language(self, lang_code, button_text):
         global current_language
         current_language = lang_code
-        
-        # Close the menu
-        if self.language_menu is not None:
-            self.language_menu.dismiss()
-        
-        # Update translations
+        self.root.ids.lang_button.text = button_text
         update_translations()
-        
-        # Update UI texts
         self.update_ui_texts()
-        
-        # Update the language button text
-        main_screen = self.get_main_screen()
-        if main_screen is not None:
-            main_screen.ids.lang_button.text = button_text
+        Logger.info(f"Translation: Language set to {lang_code}")
 
     def update_ui_texts(self):
         main_screen = self.get_main_screen()
@@ -322,35 +236,13 @@ class ExpenseTrackerApp(MDApp):
             return
             
         # Update text for all elements (no font changes to avoid errors)
-        main_screen.ids.title_label.text = EXPENSE_TRACKER
-        main_screen.ids.amount.hint_text = AMOUNT
-        main_screen.ids.category.hint_text = CATEGORY
-        main_screen.ids.note.hint_text = NOTE
-        main_screen.ids.add_button.text = ADD_EXPENSE
-        main_screen.ids.clear_button.text = CLEAR
-        main_screen.ids.expense_list_label.text = EXPENSE_LIST
-        main_screen.ids.delete_selected_button.text = DELETE_ALL
-        
-        # Apply Amharic font if current language is Amharic
-        if current_language == 'am':
-            main_screen.ids.title_label.font_name = 'AmharicFont'
-            main_screen.ids.amount.font_name = 'AmharicFont'
-            main_screen.ids.category.font_name = 'AmharicFont'
-            main_screen.ids.note.font_name = 'AmharicFont'
-            main_screen.ids.add_button.font_name = 'AmharicFont'
-            main_screen.ids.clear_button.font_name = 'AmharicFont'
-            main_screen.ids.expense_list_label.font_name = 'AmharicFont'
-            main_screen.ids.delete_selected_button.font_name = 'AmharicFont'
-        else:
-            # Reset to default font for other languages
-            main_screen.ids.title_label.font_name = 'Roboto'
-            main_screen.ids.amount.font_name = 'Roboto'
-            main_screen.ids.category.font_name = 'Roboto'
-            main_screen.ids.note.font_name = 'Roboto'
-            main_screen.ids.add_button.font_name = 'Roboto'
-            main_screen.ids.clear_button.font_name = 'Roboto'
-            main_screen.ids.expense_list_label.font_name = 'Roboto'
-            main_screen.ids.delete_selected_button.font_name = 'Roboto'
+        main_screen.ids.title_label.text = _("Expense Tracker")
+        main_screen.ids.amount.hint_text = _("Amount")
+        main_screen.ids.category.hint_text = _("Category")
+        main_screen.ids.note.hint_text = _("Note (optional)")
+        main_screen.ids.add_button.text = _("Add Expense")
+        main_screen.ids.clear_button.text = _("Clear")
+        main_screen.ids.expense_list_label.text = _("Expense List")
         
         # Update total label with current value
         current_text = main_screen.ids.total_label.text
@@ -358,11 +250,11 @@ class ExpenseTrackerApp(MDApp):
             # Extract the numeric part and reformat with new translation
             try:
                 etb_part = current_text.split(": ETB ")[1]
-                main_screen.ids.total_label.text = f"{TOTAL}: ETB {etb_part}"
+                main_screen.ids.total_label.text = f"{_("Total")}: ETB {etb_part}"
             except:
-                main_screen.ids.total_label.text = f"{TOTAL}: ETB 0.00"
+                main_screen.ids.total_label.text = f"{_("Total")}: ETB 0.00"
         else:
-            main_screen.ids.total_label.text = f"{TOTAL}: ETB 0.00"
+            main_screen.ids.total_label.text = f"{_("Total")}: ETB 0.00"
 
     def add_expense(self):
         main_screen = self.get_main_screen()
@@ -427,7 +319,7 @@ class ExpenseTrackerApp(MDApp):
         expenses = db.all()
         if not expenses:
             # Show no expenses message
-            item = OneLineListItem(text=NO_EXPENSES)
+            item = OneLineListItem(text=_("No expenses yet."))
             main_screen.ids.expense_list.add_widget(item)
         else:
             # Sort expenses by date (newest first), handling cases where date might be missing
@@ -452,84 +344,11 @@ class ExpenseTrackerApp(MDApp):
                 # Create list item
                 item = TwoLineListItem(
                     text=f"{amount_text} - {category_text}",
-                    secondary_text=secondary_text,
-                # Add a delete button to each item
-                # This will be dynamically added in Python
-                # item.add_widget(delete_button) # This is handled by the KV now
-            )
-            
-            # Add a checkbox for selection
-            checkbox = MDCheckbox(
-                size_hint_x=None,
-                width=dp(48),
-                on_release=lambda cb, expense_id=e.doc_id: self.toggle_expense_selection(cb, expense_id)
-            )
-            item.add_widget(checkbox)
-            
-            # Create a delete button for each item
-            delete_button = MDIconButton(
-                icon="delete",
-                pos_hint={"center_y": 0.5},
-                on_release=lambda x, expense_id=e.doc_id: self.confirm_delete_expense(expense_id)
-            )
-            item.add_widget(delete_button)
-            
-            main_screen.ids.expense_list.add_widget(item)
+                    secondary_text=secondary_text
+                )
+                main_screen.ids.expense_list.add_widget(item)
                 
-        main_screen.ids.total_label.text = f"{TOTAL}: ETB {total:.2f}"
-
-    def toggle_expense_selection(self, checkbox, expense_id):
-        if checkbox.active:
-            self.selected_expenses.append(expense_id)
-        else:
-            if expense_id in self.selected_expenses:
-                self.selected_expenses.remove(expense_id)
-        print(f"Selected expenses: {self.selected_expenses}") # Debugging
-
-    def confirm_delete_expense(self, expense_id=None):
-        # If expense_id is provided, it's a single delete
-        if expense_id:
-            self.dialog = MDDialog(
-                text=_("are_you_sure_delete"),
-                buttons=[
-                    MDFlatButton(text=CANCEL, on_release=self.close_dialog),
-                    MDRaisedButton(text=DELETE, on_release=lambda x: self.delete_expense(expense_id))
-                ],
-            )
-        # If no expense_id, it's a multiple delete
-        elif self.selected_expenses:
-            self.dialog = MDDialog(
-                text=_("are_you_sure_delete_multiple").format(len(self.selected_expenses)),
-                buttons=[
-                    MDFlatButton(text=CANCEL, on_release=self.close_dialog),
-                    MDRaisedButton(text=DELETE_ALL, on_release=lambda x: self.delete_selected_expenses())
-                ],
-            )
-        else:
-            # No expenses selected for multiple delete
-            self.dialog = MDDialog(
-                text=NO_EXPENSES_SELECTED,
-                buttons=[
-                    MDFlatButton(text=OK, on_release=self.close_dialog)
-                ],
-            )
-        self.dialog.open()
-
-    def delete_expense(self, expense_id):
-        db.remove(doc_ids=[expense_id])
-        self.close_dialog(None)
-        self.update_list()
-        self.show_notification(_("expense_deleted"))
-
-    def delete_selected_expenses(self):
-        db.remove(doc_ids=self.selected_expenses)
-        self.selected_expenses = [] # Clear selection
-        self.close_dialog(None)
-        self.update_list()
-        self.show_notification(_("expenses_deleted"))
-
-    def show_notification(self, message):
-        MDSnackbar(text=message).open()
+        main_screen.ids.total_label.text = f"{_("Total")}: ETB {total:.2f}"
 
 if __name__ == "__main__":
     ExpenseTrackerApp().run()
