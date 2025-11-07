@@ -250,7 +250,7 @@ class ExpenseTrackerApp(MDApp):
             # Extract the numeric part and reformat with new translation
             try:
                 etb_part = current_text.split(": ETB ")[1]
-                main_screen.ids.total_label.text = f"{_("Total")}: ETB {etb_part}"
+                main_screen.ids.total_label.text = f'{_("Total")}: ETB {etb_part}'
             except:
                 main_screen.ids.total_label.text = f"{_("Total")}: ETB 0.00"
         else:
