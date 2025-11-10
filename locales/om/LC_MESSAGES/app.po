@@ -79,32 +79,4 @@ msgstr "Meeshaa bu'uuraa hunda guuti"
 
 #: main.py:60
 msgid "ok"
-msgstr "Eeyyee"
-
-#: main.py:61
-msgid "cancel"
-msgstr "Dhiisi"
-
-#: main.py:62
-msgid "delete_all"
-msgstr "Hunda Haaqasi"
-
-#: main.py:63
-msgid "no_expenses_selected"
-msgstr "Baasiin filatame hin jiru."
-
-#: main.py:64
-msgid "expense_deleted"
-msgstr "Baasiin haqaameera."
-
-#: main.py:65
-msgid "expenses_deleted"
-msgstr "Baasiiwwan haqaamaniiru."
-
-#: main.py:66
-msgid "are_you_sure_delete"
-msgstr "Baasii kana haaquu barbaaddaa?"
-
-#: main.py:67
-msgid "are_you_sure_delete_multiple"
-msgstr "Baasiiwwan filatamoo {} haaquu barbaaddaa?"
+msgstr "TOO"

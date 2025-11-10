@@ -80,24 +80,3 @@ msgstr "እባክዎን ሁሉንም የተጠየቁ መስኮች ይሙሉ"
 #: main.py:60
 msgid "ok"
 msgstr "እሺ"
-
-msgid "cancel"
-msgstr "ይቅር"
-
-msgid "delete_all"
-msgstr "ሁሉንም ሰርዝ"
-
-msgid "no_expenses_selected"
-msgstr "ምንም ወጭ አልተመረጠም"
-
-msgid "expense_deleted"
-msgstr "ወጭ ተሰርዟል"
-
-msgid "expenses_deleted"
-msgstr "ወጪዎች ተሰርዘዋል"
-
-msgid "are_you_sure_delete"
-msgstr "ይህን ወጭ መሰረዝ ይፈልጋሉ?"
-
-msgid "are_you_sure_delete_multiple"
-msgstr "{} የተመረጡ ወጪዎችን መሰረዝ ይፈልጋሉ?"

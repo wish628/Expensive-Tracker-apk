@@ -13,10 +13,12 @@ from kivy.uix.label import Label
 from kivy.properties import ObjectProperty
 from kivy.core.text import LabelBase
 from kivymd.app import MDApp
-from kivymd.uix.list import OneLineListItem, TwoLineListItem
-from kivymd.uix.button import MDRaisedButton, MDFlatButton
+from kivymd.uix.list import OneLineListItem, TwoLineListItem, ThreeLineIconListItem
+from kivymd.uix.button import MDRaisedButton, MDFlatButton, MDIconButton
 from kivymd.uix.dialog import MDDialog
 from kivymd.uix.menu import MDDropdownMenu
+from kivymd.uix.label import MDLabel
+from kivymd.uix.list import IconLeftWidget
 from tinydb import TinyDB, Query
 
 # Set up gettext for internationalization
@@ -35,7 +37,8 @@ def update_translations():
         return
 
     try:
-        lang_obj = gettext.translation('app', app_instance.localedir, languages=[current_language])
+        # Use fallback=True so missing .mo files won't raise an exception on Android
+        lang_obj = gettext.translation('app', app_instance.localedir, languages=[current_language], fallback=True)
         lang_obj.install()
         _ = lang_obj.gettext
         Logger.info(f"Translation: Translations updated to: {current_language}")
@@ -66,8 +69,14 @@ KV = """
             MDRaisedButton:
                 id: lang_button
                 text: "EN"
-                size_hint_x: 0.3
+                size_hint_x: 0.2
                 on_release: app.show_language_menu()
+                
+            MDIconButton:
+                id: debug_button
+                icon: "bug"
+                size_hint_x: 0.1
+                on_release: app.show_debug_info()
         
         MDTextField:
             id: amount
@@ -135,6 +144,7 @@ class MainScreen(Screen):
 class ExpenseTrackerApp(MDApp):
     dialog = None
     language_menu = None
+    confirm_dialog = None
     
     def build(self):
         self.sm = ScreenManager()
@@ -143,15 +153,25 @@ class ExpenseTrackerApp(MDApp):
         main_screen = MainScreen()
         self.sm.add_widget(main_screen)
         
-        # Initialize localedir and translations here, after app is running
-        self.localedir = os.path.join(self.directory, 'locales')
-        Logger.info(f"Translation: App.directory resolved localedir: {self.localedir}")
+        # Initialize localedir based on platform
+        if platform == 'android':
+            from android.storage import app_storage_path
+            # Get the app's private storage directory on Android
+            app_dir = app_storage_path()
+            self.localedir = os.path.join(app_dir, 'locales')
+            # Ensure the locales directory exists in app private storage
+            os.makedirs(self.localedir, exist_ok=True)
+        else:
+            self.localedir = os.path.join(self.directory, 'locales')
+        
+        Logger.info(f"Translation: Resolved localedir: {self.localedir}")
 
         global en_lang, am_lang, om_lang, _
         try:
-            en_lang = gettext.translation('app', self.localedir, languages=['en'])
-            am_lang = gettext.translation('app', self.localedir, languages=['am'])
-            om_lang = gettext.translation('app', self.localedir, languages=['om'])
+            # First try loading translations
+            en_lang = gettext.translation('app', self.localedir, languages=['en'], fallback=True)
+            am_lang = gettext.translation('app', self.localedir, languages=['am'], fallback=True)
+            om_lang = gettext.translation('app', self.localedir, languages=['om'], fallback=True)
             _ = en_lang.gettext # Set initial translation function
             Logger.info("Translation: Initial English translations loaded in build().")
         except Exception as e:
@@ -163,26 +183,90 @@ class ExpenseTrackerApp(MDApp):
         return self.sm
 
     def get_main_screen(self):
-        """Safely get the main screen"""
-        if self.sm is None:
-            return None
-        try:
-            return self.sm.get_screen("main")
-        except:
-            return None
-
-    def show_language_menu(self):
-        main_screen = self.get_main_screen()
-        if main_screen is None:
-            return
+                try:
+                    expense_list = main_screen.ids.expense_list
+                    expense_list.clear_widgets()
+                    total = 0
             
-        # Create language menu
-        menu_items = [
-            {
-                "text": "English",
-                "viewclass": "OneLineListItem",
+                    for expense in db.all():
+                        amount = expense.get('amount', 0)
+                        category = expense.get('category', '')
+                        note = expense.get('note', '')
+                        date = expense.get('date', '')
+                        doc_id = expense.doc_id
+                
+                        # Create the list item with left icon and delete button
+                        item = ThreeLineIconListItem(
+                            text=f"{category}",
+                            secondary_text=f"ETB {amount}",
+                            tertiary_text=f"{date}{' - ' + note if note else ''}",
+                        )
+                
+                        # Add category icon
+                        icon = IconLeftWidget(
+                            icon="cash"
+                        )
+                        item.add_widget(icon)
+                
+                        # Add delete button
+                        delete_button = MDIconButton(
+                            icon="delete",
+                            pos_hint={'center_y': 0.5},
+                            on_release=lambda x, doc_id=doc_id: self.show_delete_confirm(doc_id)
+                        )
+                        item.add_widget(delete_button)
+                
+                        expense_list.add_widget(item)
+                        total += float(amount)
+                
+                    # Update total
+                    main_screen.ids.total_label.text = f"Total: ETB {total:.2f}"
+                except Exception as e:
+                    Logger.error(f"Error updating expense list: {str(e)}")
+                    self.show_error_dialog(_("Error updating expense list"))
                 "on_release": lambda: self.set_language('en', 'EN')
+            def show_delete_confirm(self, doc_id):
+                """Show confirmation dialog before deleting an expense"""
+                try:
+                    expense = db.get(doc_id=doc_id)
+                    if not expense:
+                        self.show_error_dialog(_("Expense not found"))
+                        return
+
+                    # Create confirmation dialog
+                    if self.confirm_dialog:
+                        self.confirm_dialog.dismiss()
+
+                    self.confirm_dialog = MDDialog(
+                        title=_("Delete Expense"),
+                        text=_(f"Are you sure you want to delete this expense?\n\nCategory: {expense['category']}\nAmount: ETB {expense['amount']}\nDate: {expense['date']}"),
+                        buttons=[
+                            MDFlatButton(
+                                text=_("Cancel"),
+                                on_release=lambda x: self.confirm_dialog.dismiss()
+                            ),
+                            MDRaisedButton(
+                                text=_("Delete"),
+                                on_release=lambda x: self.delete_expense(doc_id)
+                            ),
+                        ],
+                    )
+                    self.confirm_dialog.open()
+                except Exception as e:
+                    Logger.error(f"Error showing delete confirmation: {str(e)}")
+                    self.show_error_dialog(_("Error showing delete confirmation"))
             },
+            def delete_expense(self, doc_id):
+                """Delete an expense from the database"""
+                try:
+                    db.remove(doc_ids=[doc_id])
+                    if self.confirm_dialog:
+                        self.confirm_dialog.dismiss()
+                    self.update_list()
+                    Logger.info(f"Successfully deleted expense with ID: {doc_id}")
+                except Exception as e:
+                    Logger.error(f"Error deleting expense: {str(e)}")
+                    self.show_error_dialog(_("Error deleting expense"))
             {
                 "text": "አማርኛ",
                 "viewclass": "OneLineListItem",
@@ -206,32 +290,50 @@ class ExpenseTrackerApp(MDApp):
         """Load all translations for the app"""
         global en_lang, am_lang, om_lang
         try:
-            en_lang = gettext.translation('app', self.localedir, languages=['en'])
-            am_lang = gettext.translation('app', self.localedir, languages=['am'])
-            om_lang = gettext.translation('app', self.localedir, languages=['om'])
+            # Use fallback=True so missing files won't crash the app
+            en_lang = gettext.translation('app', self.localedir, languages=['en'], fallback=True)
+            am_lang = gettext.translation('app', self.localedir, languages=['am'], fallback=True)
+            om_lang = gettext.translation('app', self.localedir, languages=['om'], fallback=True)
             Logger.info("Translation: All translation objects loaded successfully.")
         except Exception as e:
             Logger.error(f"Translation: Error in load_all_translations: {e}")
 
     def set_language(self, lang_code, button_text):
-        global current_language
-        current_language = lang_code
-        self.root.ids.lang_button.text = button_text
-        # Pass self.localedir to update_translations
-        self.update_translations_with_localedir(self.localedir)
-        self.update_ui_texts()
-        Logger.info(f"Translation: Language set to {lang_code}")
+        try:
+            global current_language
+            current_language = lang_code
+            
+            # Get the main screen safely
+            main_screen = self.get_main_screen()
+            if main_screen and hasattr(main_screen, 'ids') and hasattr(main_screen.ids, 'lang_button'):
+                main_screen.ids.lang_button.text = button_text
+            
+            # Update translations safely
+            self.update_translations_with_localedir(self.localedir)
+            self.update_ui_texts()
+            
+            # Close the language menu if it's open
+            if self.language_menu:
+                self.language_menu.dismiss()
+                
+            Logger.info(f"Translation: Language set to {lang_code}")
+        except Exception as e:
+            Logger.error(f"Translation: Error in set_language: {str(e)}")
+            # Don't propagate the exception - keep the app running
 
     def update_translations_with_localedir(self, localedir_path):
         global _
         try:
-            lang_obj = gettext.translation('app', localedir_path, languages=[current_language])
+            # Use fallback=True to prevent exceptions if translation file is missing
+            lang_obj = gettext.translation('app', localedir_path, languages=[current_language], fallback=True)
             lang_obj.install()
             _ = lang_obj.gettext
             Logger.info(f"Translation: Translations updated to: {current_language}")
         except Exception as e:
             Logger.error(f"Translation: Error updating translations for {current_language}: {e}")
-            _ = lambda s: s
+            # Keep the current translation function if there's an error
+            if not callable(_):
+                _ = lambda s: s
 
     def update_ui_texts(self):
         main_screen = self.get_main_screen()
@@ -298,9 +400,123 @@ class ExpenseTrackerApp(MDApp):
         # Update list
         self.update_list()
 
+    def show_debug_info(self):
+        """Show debug information about translations"""
+        try:
+            # Get translation paths and files
+            debug_info = ["Translation Debug Info:"]
+            debug_info.append(f"Platform: {platform}")
+            debug_info.append(f"Current language: {current_language}")
+            debug_info.append(f"Localedir: {self.localedir}")
+            
+            # List translation files
+            if os.path.exists(self.localedir):
+                debug_info.append("\nAvailable translation files:")
+                for root, dirs, files in os.walk(self.localedir):
+                    for file in files:
+                        if file.endswith('.mo') or file.endswith('.po'):
+                            rel_path = os.path.relpath(os.path.join(root, file), self.localedir)
+                            debug_info.append(f"- {rel_path}")
+            else:
+                debug_info.append(f"\nLocales directory not found: {self.localedir}")
+            
+            # Show the debug info in a dialog
+            content = MDLabel(
+                text="\n".join(debug_info),
+                size_hint_y=None,
+                height=400,
+                halign="left"
+            )
+            self.debug_dialog = MDDialog(
+                title="Debug Information",
+                type="custom",
+                content_cls=content,
+                buttons=[
+                    MDFlatButton(
+                        text="Close",
+                        on_release=lambda x: self.debug_dialog.dismiss()
+                    )
+                ]
+            )
+            self.debug_dialog.open()
+            
+        except Exception as e:
+            Logger.error(f"Debug: Error showing debug info: {str(e)}")
+            # Show error in a simple dialog
+            content = MDLabel(
+                text=f"Error getting debug info:\n{str(e)}",
+                size_hint_y=None,
+                height=100
+            )
+            self.debug_dialog = MDDialog(
+                title="Debug Error",
+                type="custom",
+                content_cls=content,
+                buttons=[
+                    MDFlatButton(
+                        text="Close",
+                        on_release=lambda x: self.debug_dialog.dismiss()
+                    )
+                ]
+            )
+            self.debug_dialog.open()
+
     def close_dialog(self, instance):
         if self.dialog is not None:
             self.dialog.dismiss()
+            
+    def confirm_delete(self, expense):
+        """Show confirmation dialog before deleting an expense"""
+        if not self.confirm_dialog:
+            amount = f"ETB {expense['amount']:.2f}"
+            category = expense['category']
+            self.expense_to_delete = expense
+            
+            self.confirm_dialog = MDDialog(
+                text=_("Are you sure you want to delete this expense?") + f"\n{amount} - {category}",
+                buttons=[
+                    MDFlatButton(
+                        text=_("Cancel"),
+                        on_release=lambda x: self.confirm_dialog.dismiss()
+                    ),
+                    MDRaisedButton(
+                        text=_("Delete"),
+                        on_release=lambda x: self.delete_expense(expense)
+                    ),
+                ],
+            )
+        self.confirm_dialog.open()
+
+    def delete_expense(self, expense):
+        """Delete an expense from the database"""
+        try:
+            Expense = Query()
+            # Delete expense matching all fields
+            db.remove(
+                (Expense.amount == expense["amount"]) & 
+                (Expense.category == expense["category"]) & 
+                (Expense.date == expense["date"])
+            )
+            # Close the confirmation dialog
+            if self.confirm_dialog:
+                self.confirm_dialog.dismiss()
+            # Update the list view
+            self.update_list()
+        except Exception as e:
+            Logger.error(f"Error deleting expense: {str(e)}")
+            if self.confirm_dialog:
+                self.confirm_dialog.dismiss()
+            # Show error dialog
+            error_dialog = MDDialog(
+                text=_("Error deleting expense"),
+                buttons=[
+                    MDFlatButton(
+                        text=_("ok"),
+                        on_release=lambda x: error_dialog.dismiss()
+                    ),
+                ],
+            )
+            error_dialog.open()
 
     def clear_fields(self):
         main_screen = self.get_main_screen()
@@ -347,8 +563,15 @@ class ExpenseTrackerApp(MDApp):
                 # Create list item
                 item = TwoLineListItem(
                     text=f"{amount_text} - {category_text}",
-                    secondary_text=secondary_text
+                    secondary_text=secondary_text,
                 )
+                # Add delete icon
+                delete_icon = MDIconButton(
+                    icon="delete",
+                    pos_hint={"center_y": .5},
+                    on_release=lambda x, expense=e: self.confirm_delete(expense)
+                )
+                item.add_widget(delete_icon)
                 main_screen.ids.expense_list.add_widget(item)
                 
         main_screen.ids.total_label.text = f'{_("Total")}: ETB {total:.2f}'

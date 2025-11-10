@@ -80,31 +80,3 @@ msgstr "Please fill in all required fields"
 #: main.py:60
 msgid "ok"
 msgstr "OK"
-
-#: main.py:61
-msgid "cancel"
-msgstr "Cancel"
-
-#: main.py:62
-msgid "delete_all"
-msgstr "Delete All"
-
-#: main.py:63
-msgid "no_expenses_selected"
-msgstr "No expenses selected for deletion."
-
-#: main.py:64
-msgid "expense_deleted"
-msgstr "Expense deleted."
-
-#: main.py:65
-msgid "expenses_deleted"
-msgstr "Expenses deleted."
-
-#: main.py:66
-msgid "are_you_sure_delete"
-msgstr "Are you sure you want to delete this expense?"
-
-#: main.py:67
-msgid "are_you_sure_delete_multiple"
-msgstr "Are you sure you want to delete {} selected expenses?"
