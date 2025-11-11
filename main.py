@@ -12,6 +12,7 @@ from kivymd.uix.list import OneLineListItem, TwoLineListItem
 from kivymd.uix.button import MDFlatButton
 from kivymd.uix.dialog import MDDialog
 from kivymd.uix.menu import MDDropdownMenu
+from kivymd.uix.snackbar import Snackbar
 from tinydb import TinyDB
 from utils import validate_expense
 
@@ -342,43 +343,50 @@ class ExpenseTrackerApp(MDApp):
         """Change the app's language."""
         global current_language, _, en_lang, am_lang, om_lang
 
-        current_language = lang_code
+        try:
+            current_language = lang_code
 
-        # Update button text only if UI is available
-        if self.root and hasattr(
-                self.root,
-                'ids') and hasattr(
-                self.root.ids,
-                'lang_button'):
-            self.root.ids.lang_button.text = button_text
+            # Update button text only if UI is available
+            try:
+                if self.root and hasattr(self.root, 'ids') and hasattr(self.root.ids, 'lang_button'):
+                    self.root.ids.lang_button.text = button_text
+            except Exception as e:
+                Logger.error(f"Translation: Failed to update button text: {e}")
 
-        # Update global translation function using factory
-        def _gettext_factory(lang_code, gettext_obj):
-            def _t(s):
-                # Try gettext object first
-                try:
-                    res = gettext_obj.gettext(s)
-                    if res and res != s:
-                        return res
-                except Exception:
-                    pass
-                # Fallback to PO mapping
-                return TRANSLATIONS.get(lang_code, {}).get(s, s)
-            return _t
+            # Update global translation function using factory
+            def _gettext_factory(lang_code, gettext_obj):
+                def _t(s):
+                    # Try gettext object first
+                    try:
+                        res = gettext_obj.gettext(s)
+                        if res and res != s:
+                            return res
+                    except Exception:
+                        pass
+                    # Fallback to PO mapping
+                    return TRANSLATIONS.get(lang_code, {}).get(s, s)
+                return _t
 
-        # Get the appropriate gettext object
-        lang_obj_map = {'en': en_lang, 'am': am_lang, 'om': om_lang}
-        lang_obj = lang_obj_map.get(lang_code)
-        if lang_obj:
-            _ = _gettext_factory(lang_code, lang_obj)
-        else:
-            def _(s): return s
+            # Get the appropriate gettext object
+            lang_obj_map = {'en': en_lang, 'am': am_lang, 'om': om_lang}
+            lang_obj = lang_obj_map.get(lang_code)
+            if lang_obj:
+                _ = _gettext_factory(lang_code, lang_obj)
+            else:
+                def _(s): return s
 
-        # Update UI texts if UI is available
-        if self.root:
-            self.update_ui_texts()
+            # Update UI texts if UI is available
+            try:
+                if self.root:
+                    self.update_ui_texts()
+            except Exception as e:
+                Logger.error(f"Translation: Failed to update UI texts: {e}")
 
-        Logger.info(f"Translation: Language set to {lang_code}")
+            Logger.info(f"Translation: Language set to {lang_code}")
+            self.notify(f"Language changed to {button_text}")
+        except Exception as e:
+            Logger.error(f"Translation: Error in set_language: {e}")
+            self.notify("Language change failed")
 
     def update_translations_with_localedir(self, localedir_path):
         """Legacy method for compatibility; use set_language instead."""
@@ -391,39 +399,41 @@ class ExpenseTrackerApp(MDApp):
         if main_screen is None:
             return
 
-        # Update text for all elements using translation keys from PO files
-        main_screen.ids.title_label.text = _("expense_tracker")
-        main_screen.ids.amount.hint_text = _("amount")
-        main_screen.ids.category.hint_text = _("category")
-        main_screen.ids.note.hint_text = _("note")
-        main_screen.ids.add_button.text = _("add_expense")
-        main_screen.ids.clear_button.text = _("clear")
-        main_screen.ids.expense_list_label.text = _("expense_list")
+        try:
+            # Update text for all elements using translation keys from PO files
+            main_screen.ids.title_label.text = _("expense_tracker")
+            main_screen.ids.amount.hint_text = _("amount")
+            main_screen.ids.category.hint_text = _("category")
+            main_screen.ids.note.hint_text = _("note")
+            main_screen.ids.add_button.text = _("add_expense")
+            main_screen.ids.clear_button.text = _("clear")
+            main_screen.ids.expense_list_label.text = _("expense_list")
 
-        # Update total label with current value (use translation key 'total')
-        current_text = main_screen.ids.total_label.text
-        if ": ETB" in current_text:
-            try:
-                etb_part = current_text.split(": ETB ")[1]
-                main_screen.ids.total_label.text = f'{_("total")}: ETB {etb_part}'
-            except BaseException:
+            # Update total label with current value (use translation key 'total')
+            current_text = main_screen.ids.total_label.text
+            if ": ETB" in current_text:
+                try:
+                    etb_part = current_text.split(": ETB ")[1]
+                    main_screen.ids.total_label.text = f'{_("total")}: ETB {etb_part}'
+                except BaseException:
+                    main_screen.ids.total_label.text = f'{_("total")}: ETB 0.00'
+            else:
                 main_screen.ids.total_label.text = f'{_("total")}: ETB 0.00'
-        else:
-            main_screen.ids.total_label.text = f'{_("total")}: ETB 0.00'
+        except Exception as e:
+            Logger.error(f"Translation: Error updating UI texts: {e}")
 
     def notify(self, message):
         """Show an in-app notification (Snackbar) and try native notification on Android."""
         try:
-            from kivymd.uix.snackbar import Snackbar
-            Snackbar(text=message).open()
-        except Exception:
-            Logger.info(f"Notification: {message}")
+            Snackbar(text=message, duration=2).open()
+        except Exception as e:
+            Logger.info(f"Notification: {message} (Snackbar error: {e})")
 
         # Try native notification if available
         if plyer_notification and platform == 'android':
             try:
                 plyer_notification.notify(
-                    title="ExpenseTracker", message=message)
+                    title="ExpenseTracker", message=message, timeout=2)
             except Exception as e:
                 Logger.error(f"Notification: plyer failed: {e}")
 
@@ -440,9 +450,10 @@ class ExpenseTrackerApp(MDApp):
         ok, err_key = validate_expense(amount, category)
         if not ok:
             msg_key = err_key or 'fill_all_fields'
+            error_msg = _(msg_key)
             if not self.dialog:
                 self.dialog = MDDialog(
-                    text=_(msg_key),
+                    text=error_msg,
                     buttons=[
                         MDFlatButton(
                             text=_('ok'),
@@ -462,33 +473,23 @@ class ExpenseTrackerApp(MDApp):
                 "note": note,
                 "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
             })
+            # Clear fields
+            self.clear_fields()
+            # Update list
+            self.update_list()
+            # Notify user with success message
+            success_msg = f"✓ Added ETB {amount} to {category}"
+            self.notify(success_msg)
+            Logger.info(f"DB: Expense added - {category}: ETB {amount}")
         except Exception as e:
             Logger.error(f"DB: Failed to insert expense: {e}")
-            if hasattr(self, 'dialog') and self.dialog:
-                self.dialog = MDDialog(
-                    text=str(e),
-                    buttons=[
-                        MDFlatButton(
-                            text=_('ok'),
-                            on_release=self.close_dialog)])
-                self.dialog.open()
-            return
-
-        # Clear fields
-        self.clear_fields()
-
-        # Update list
-        self.update_list()
-        # Notify user
-        try:
-            # localized notification (fallback to English message if key not
-            # present)
-            try:
-                self.notify(_("expense_added"))
-            except Exception:
-                self.notify("Expense added")
-        except Exception:
-            pass
+            error_dialog = MDDialog(
+                text=f"Error adding expense: {str(e)}",
+                buttons=[
+                    MDFlatButton(
+                        text=_('ok'),
+                        on_release=lambda x: error_dialog.dismiss())])
+            error_dialog.open()
 
     def close_dialog(self, instance):
         if self.dialog is not None:
@@ -584,48 +585,70 @@ class ExpenseTrackerApp(MDApp):
                 pass
 
     def delete_selected(self):
-        """Delete all selected expenses."""
+        """Delete all selected expenses with confirmation dialog."""
         if not self.selected_ids:
-            self.notify(_("no_selection") if _(
-                "no_selection") else "No items selected")
+            self.notify("ℹ️ No expenses selected. Tap on expenses to select them.")
             return
-        try:
-            # remove by doc_ids
-            db.remove(doc_ids=list(self.selected_ids))
-        except Exception as e:
-            Logger.error(f"DB: delete_selected failed: {e}")
-        finally:
-            self.selected_ids.clear()
-            self.update_list()
+        
+        count = len(self.selected_ids)
+        
+        def _confirm_delete(instance):
             try:
-                self.notify(_("selection_deleted") if _(
-                    "selection_deleted") else "Selected deleted")
-            except Exception:
-                pass
+                # remove by doc_ids
+                db.remove(doc_ids=list(self.selected_ids))
+                self.selected_ids.clear()
+                self.update_list()
+                self.notify(f"✓ Deleted {count} expense(s)")
+                Logger.info(f"DB: Deleted {count} selected expense(s)")
+            except Exception as e:
+                Logger.error(f"DB: delete_selected failed: {e}")
+                self.notify(f"✗ Error deleting expenses: {e}")
+            finally:
+                confirm_dialog.dismiss()
+
+        confirm_dialog = MDDialog(
+            text=f"Delete {count} selected expense(s)? This cannot be undone.",
+            buttons=[
+                MDFlatButton(
+                    text="Yes, Delete",
+                    on_release=_confirm_delete
+                ),
+                MDFlatButton(
+                    text="Cancel",
+                    on_release=lambda x: confirm_dialog.dismiss()
+                )
+            ]
+        )
+        confirm_dialog.open()
 
     def confirm_delete(self, doc_id):
         """Show confirmation dialog before deleting a single expense."""
         if doc_id is None:
-            self.notify("Unable to identify this expense for deletion.")
+            self.notify("✗ Unable to identify this expense for deletion.")
             return
 
         def _do_delete(instance):
             try:
                 db.remove(doc_ids=[doc_id])
+                self.update_list()
+                self.notify("✓ Expense deleted")
+                Logger.info(f"DB: Single expense deleted (id: {doc_id})")
             except Exception as e:
                 Logger.error(f"DB: delete failed: {e}")
-            self.update_list()
-            try:
-                self.notify("Expense deleted")
-            except Exception:
-                pass
+                self.notify(f"✗ Failed to delete: {e}")
             d.dismiss()
 
         d = MDDialog(
-            text="Delete this expense?",
+            text="Are you sure you want to delete this expense?",
             buttons=[
-                MDFlatButton(text=_('ok'), on_release=_do_delete),
-                MDFlatButton(text=_('clear'), on_release=lambda x: d.dismiss())
+                MDFlatButton(
+                    text="Yes, Delete",
+                    on_release=_do_delete
+                ),
+                MDFlatButton(
+                    text="Cancel",
+                    on_release=lambda x: d.dismiss()
+                )
             ]
         )
         d.open()
@@ -633,14 +656,25 @@ class ExpenseTrackerApp(MDApp):
     def confirm_clear_database(self):
         """Ask user to confirm clearing the whole database."""
         def _do_clear(instance):
-            self.clear_database()
-            d.dismiss()
+            try:
+                self.clear_database()
+                d.dismiss()
+            except Exception as e:
+                Logger.error(f"DB: Failed to clear database: {e}")
+                self.notify(f"✗ Error: {e}")
+                d.dismiss()
 
         d = MDDialog(
-            text="Delete ALL expenses? This cannot be undone.",
+            text="⚠️  Delete ALL expenses? This action cannot be undone and will permanently remove all data.",
             buttons=[
-                MDFlatButton(text=_('ok'), on_release=_do_clear),
-                MDFlatButton(text=_('clear'), on_release=lambda x: d.dismiss())
+                MDFlatButton(
+                    text="Yes, Delete All",
+                    on_release=_do_clear
+                ),
+                MDFlatButton(
+                    text="Cancel",
+                    on_release=lambda x: d.dismiss()
+                )
             ]
         )
         d.open()
@@ -667,23 +701,26 @@ class ExpenseTrackerApp(MDApp):
                         except Exception:
                             pass
             self.update_list()
-            self.notify("Database cleared")
+            self.notify(f"✓ Database cleared ({len(doc_ids)} expenses deleted)")
+            Logger.info(f"DB: Database cleared - removed {len(doc_ids)} expenses")
         except Exception as e:
             Logger.error(f"DB: clear failed: {e}")
+            self.notify(f"✗ Failed to clear database: {e}")
 
     def export_database(self):
         try:
             data = db.all()
             if not data:
-                self.notify("No data to export")
+                self.notify("ℹ️ No data to export")
                 return
             fname = f"expenses_export_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
             with open(fname, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
-            self.notify(f"Exported to {fname}")
+            self.notify(f"✓ Exported {len(data)} expense(s) to {fname}")
+            Logger.info(f"DB: Exported {len(data)} expenses to {fname}")
         except Exception as e:
             Logger.error(f"Export failed: {e}")
-            self.notify("Export failed")
+            self.notify(f"✗ Export failed: {e}")
 
 
 if __name__ == "__main__":
