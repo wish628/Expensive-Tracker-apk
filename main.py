@@ -67,94 +67,94 @@ KV = """
     name: "main"
     MDBoxLayout:
         orientation: "vertical"
-        spacing: dp(10)
-        padding: dp(10)
+        spacing: dp(8)
+        padding: dp(8)
+
+        MDToolbar:
+            id: toolbar
+            title: "Expense Tracker"
+            elevation: 10
+            md_bg_color: app.theme_cls.primary_color
+            left_action_items: []
+            right_action_items: [["language", lambda x: app.show_language_menu()]]
 
         MDBoxLayout:
             orientation: "horizontal"
+            spacing: dp(8)
             size_hint_y: None
-            height: dp(50)
+            height: dp(56)
 
-            MDLabel:
-                id: title_label
-                text: "Expense Tracker"
-                halign: "left"
-                font_style: "H4"
-                size_hint_x: 0.7
+            MDTextField:
+                id: amount
+                hint_text: "Amount"
+                input_filter: "float"
+                helper_text: "Enter amount in ETB"
+                helper_text_mode: "on_focus"
 
-            MDRaisedButton:
-                id: lang_button
-                text: "EN"
-                size_hint_x: 0.3
-                on_release: app.show_language_menu()
-
-        MDTextField:
-            id: amount
-            hint_text: "Amount"
-            input_filter: "float"
-            helper_text: "Enter amount in ETB"
-            helper_text_mode: "on_focus"
-
-        MDTextField:
-            id: category
-            hint_text: "Category"
-            helper_text: "e.g., Food, Transport, etc."
-            helper_text_mode: "on_focus"
+            MDTextField:
+                id: category
+                hint_text: "Category"
+                helper_text: "e.g., Food, Transport, etc."
+                helper_text_mode: "on_focus"
 
         MDTextField:
             id: note
             hint_text: "Note (optional)"
             multiline: True
             mode: "rectangle"
+            size_hint_y: None
+            height: dp(100)
 
         MDBoxLayout:
             orientation: "horizontal"
-            spacing: dp(10)
+            spacing: dp(8)
             size_hint_y: None
-            height: dp(50)
+            height: dp(48)
 
             MDRaisedButton:
                 id: add_button
                 text: "Add Expense"
                 on_release: app.add_expense()
-                size_hint_x: 0.7
+                size_hint_x: 0.6
 
-            MDFlatButton:
-                id: clear_button
-                text: "Clear"
-                on_release: app.clear_fields()
-                size_hint_x: 0.3
+            MDIconButton:
+                id: export_button
+                icon: "export"
+                on_release: app.export_database()
+                pos_hint: {"center_y": .5}
+
+            MDIconButton:
+                id: delete_selected_button
+                icon: "delete"
+                on_release: app.delete_selected()
+                disabled: True
+                opacity: .0
+
+            MDIconButton:
+                id: delete_all_button
+                icon: "delete-forever"
+                on_release: app.confirm_clear_database()
+                pos_hint: {"center_y": .5}
 
         MDBoxLayout:
             orientation: "horizontal"
-            spacing: dp(10)
             size_hint_y: None
-            height: dp(40)
-
-            MDFlatButton:
-                id: delete_selected_button
-                text: "Delete Selected"
-                on_release: app.delete_selected()
-                size_hint_x: 0.33
-
-            MDFlatButton:
-                id: delete_all_button
-                text: "Delete All"
-                on_release: app.confirm_clear_database()
-                size_hint_x: 0.33
-
-            MDFlatButton:
-                id: export_button
-                text: "Export"
-                on_release: app.export_database()
-                size_hint_x: 0.34
-
-        MDLabel:
-            id: total_label
-            text: "Total: ETB 0.00"
-            halign: "center"
-            font_style: "H6"
-            theme_text_color: "Primary"
+            height: dp(36)
+            MDLabel:
+                id: total_label
+                text: "Total: ETB 0.00"
+                halign: "left"
+                font_style: "H6"
+                theme_text_color: "Primary"
+            MDCheckbox:
+                id: select_all_checkbox
+                size_hint_x: None
+                width: dp(48)
+                on_active: app.toggle_select_all(self, args[1])
+            MDLabel:
+                text: "Select All"
+                size_hint_x: None
+                width: dp(90)
 
         MDLabel:
             id: expense_list_label
@@ -163,7 +163,7 @@ KV = """
             font_style: "Subtitle1"
             theme_text_color: "Secondary"
             size_hint_y: None
-            height: dp(30)
+            height: dp(28)
 
         ScrollView:
             MDList:
@@ -248,31 +248,30 @@ class ExpenseTrackerApp(MDApp):
         main_screen = self.get_main_screen()
         if main_screen is None:
             return
-
-        # Create language menu
-        menu_items = [
-            {
-                "text": "English",
+        # Create language menu with safe callbacks that dismiss the menu
+        def _make_item(label, code, button_text):
+            return {
+                "text": label,
                 "viewclass": "OneLineListItem",
-                "on_release": lambda: self.set_language('en', 'EN')
-            },
-            {
-                "text": "አማርኛ",
-                "viewclass": "OneLineListItem",
-                "on_release": lambda: self.set_language('am', 'AM')
-            },
-            {
-                "text": "Oromoo",
-                "viewclass": "OneLineListItem",
-                "on_release": lambda: self.set_language('om', 'OM')
+                "on_release": lambda x=None, c=code, b=button_text: (self.language_menu.dismiss(), self.set_language(c, b))
             }
+
+        menu_items = [
+            _make_item("English", 'en', 'EN'),
+            _make_item("አማርኛ", 'am', 'AM'),
+            _make_item("Oromoo", 'om', 'OM')
         ]
 
         self.language_menu = MDDropdownMenu(
-            caller=main_screen.ids.lang_button,
+            caller=main_screen.ids.toolbar.ids.right_actions if hasattr(main_screen.ids.toolbar, 'ids') else main_screen.ids.toolbar,
             items=menu_items,
             width_mult=4,
         )
+        # Fallback: attach to toolbar if lang button not present
+        try:
+            self.language_menu.caller = main_screen.ids.toolbar
+        except Exception:
+            pass
         self.language_menu.open()
 
     def load_all_translations(self):
@@ -346,12 +345,13 @@ class ExpenseTrackerApp(MDApp):
         try:
             current_language = lang_code
 
-            # Update button text only if UI is available
+            # Update toolbar title (UI may use toolbar now)
             try:
-                if self.root and hasattr(self.root, 'ids') and hasattr(self.root.ids, 'lang_button'):
-                    self.root.ids.lang_button.text = button_text
+                main_screen = self.get_main_screen()
+                if main_screen and hasattr(main_screen.ids, 'toolbar'):
+                    main_screen.ids.toolbar.title = _("expense_tracker")
             except Exception as e:
-                Logger.error(f"Translation: Failed to update button text: {e}")
+                Logger.error(f"Translation: Failed to update toolbar title: {e}")
 
             # Update global translation function using factory
             def _gettext_factory(lang_code, gettext_obj):
@@ -401,12 +401,17 @@ class ExpenseTrackerApp(MDApp):
 
         try:
             # Update text for all elements using translation keys from PO files
-            main_screen.ids.title_label.text = _("expense_tracker")
+            # toolbar title
+            try:
+                if hasattr(main_screen.ids, 'toolbar'):
+                    main_screen.ids.toolbar.title = _("expense_tracker")
+            except Exception:
+                pass
             main_screen.ids.amount.hint_text = _("amount")
             main_screen.ids.category.hint_text = _("category")
             main_screen.ids.note.hint_text = _("note")
             main_screen.ids.add_button.text = _("add_expense")
-            main_screen.ids.clear_button.text = _("clear")
+            # export and delete buttons are icon-based; no text to update
             main_screen.ids.expense_list_label.text = _("expense_list")
 
             # Update total label with current value (use translation key 'total')
@@ -419,6 +424,13 @@ class ExpenseTrackerApp(MDApp):
                     main_screen.ids.total_label.text = f'{_("total")}: ETB 0.00'
             else:
                 main_screen.ids.total_label.text = f'{_("total")}: ETB 0.00'
+        except Exception as e:
+            Logger.error(f"Translation: Error updating UI texts overall: {e}")
+        # ensure action buttons reflect selection state
+        try:
+            self.update_action_buttons_visibility()
+        except Exception:
+            pass
         except Exception as e:
             Logger.error(f"Translation: Error updating UI texts: {e}")
 
@@ -562,7 +574,22 @@ class ExpenseTrackerApp(MDApp):
                     pass
                 main_screen.ids.expense_list.add_widget(item)
 
+        # Update total label
         main_screen.ids.total_label.text = f'{_("total")}: ETB {total:.2f}'
+
+        # Update select-all checkbox state
+        try:
+            all_doc_ids = set(getattr(d, 'doc_id', None) for d in expenses if getattr(d, 'doc_id', None) is not None)
+            if hasattr(main_screen.ids, 'select_all_checkbox'):
+                main_screen.ids.select_all_checkbox.active = (all_doc_ids and all_doc_ids == (self.selected_ids or set()))
+        except Exception:
+            pass
+
+        # Ensure buttons visibility updated after list refresh
+        try:
+            self.update_action_buttons_visibility()
+        except Exception:
+            pass
 
     def toggle_select(self, doc_id, instance=None):
         """Toggle selection for a given document id and update the visual prefix."""
@@ -583,6 +610,42 @@ class ExpenseTrackerApp(MDApp):
                     instance.text = '[x] ' + instance.text
             except Exception:
                 pass
+        # Update action button visibility when selection changes
+        try:
+            self.update_action_buttons_visibility()
+        except Exception:
+            pass
+
+    def update_action_buttons_visibility(self):
+        """Show or hide action buttons (like delete) based on selection state."""
+        main_screen = self.get_main_screen()
+        if main_screen is None:
+            return
+        try:
+            has_selection = bool(self.selected_ids)
+            # Delete selected button visible only when there are selections
+            main_screen.ids.delete_selected_button.disabled = not has_selection
+            main_screen.ids.delete_selected_button.opacity = 1.0 if has_selection else 0.0
+        except Exception as e:
+            Logger.error(f"UI: update_action_buttons_visibility failed: {e}")
+
+    def toggle_select_all(self, checkbox_instance, value):
+        """Select or deselect all expenses when the 'Select All' checkbox is toggled."""
+        main_screen = self.get_main_screen()
+        if main_screen is None:
+            return
+        try:
+            if value:
+                # select all doc_ids
+                all_docs = db.all()
+                self.selected_ids = set(getattr(d, 'doc_id', None) for d in all_docs if getattr(d, 'doc_id', None) is not None)
+            else:
+                self.selected_ids = set()
+            # refresh list display so prefixes update
+            self.update_list()
+            self.update_action_buttons_visibility()
+        except Exception as e:
+            Logger.error(f"UI: toggle_select_all failed: {e}")
 
     def delete_selected(self):
         """Delete all selected expenses with confirmation dialog."""
