@@ -209,8 +209,7 @@ class ExpenseTrackerApp(MDApp):
         # Initialize localedir and translations here, after app is running
         self.localedir = os.path.join(self.directory, 'locales')
         Logger.info(
-            f"Translation: App.directory resolved localedir: {
-                self.localedir}")
+            f"Translation: App.directory resolved localedir: {self.localedir}")
 
         global en_lang, am_lang, om_lang, _
         try:
@@ -406,8 +405,7 @@ class ExpenseTrackerApp(MDApp):
         if ": ETB" in current_text:
             try:
                 etb_part = current_text.split(": ETB ")[1]
-                main_screen.ids.total_label.text = f'{
-                    _("total")}: ETB {etb_part}'
+                main_screen.ids.total_label.text = f'{_("total")}: ETB {etb_part}'
             except BaseException:
                 main_screen.ids.total_label.text = f'{_("total")}: ETB 0.00'
         else:
@@ -679,8 +677,7 @@ class ExpenseTrackerApp(MDApp):
             if not data:
                 self.notify("No data to export")
                 return
-            fname = f"expenses_export_{
-                datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            fname = f"expenses_export_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
             with open(fname, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
             self.notify(f"Exported to {fname}")
