@@ -170,7 +170,10 @@ KV = """
                 id: expense_list
 """
 
-db = TinyDB("expenses.json")
+# Defer DB creation until the App is running so we can choose a safe path
+# (on Android the current working directory may not be writable). We set
+# a module-level `db` and initialize it in `ExpenseTrackerApp.build()`.
+db = None
 
 
 class MainScreen(Screen):
@@ -211,6 +214,43 @@ class ExpenseTrackerApp(MDApp):
         self.localedir = os.path.join(self.directory, 'locales')
         Logger.info(
             f"Translation: App.directory resolved localedir: {self.localedir}")
+
+        # Initialize TinyDB using a safe writable path. On Android use
+        # the app's user_data_dir; otherwise fall back to the project
+        # directory (useful for desktop/testing).
+        global db
+        try:
+            if platform == 'android':
+                db_path = os.path.join(self.user_data_dir, 'expenses.json')
+            else:
+                db_path = os.path.join(self.directory, 'expenses.json')
+            Logger.info(f"DB: Initializing TinyDB at: {db_path}")
+            db = TinyDB(db_path)
+        except Exception as e:
+            Logger.error(f"DB: Failed to initialize TinyDB: {e}")
+            # Fall back to an in-memory list-like shim to avoid crashes
+            # (this keeps the app running though data won't persist).
+            class _InMemoryDB:
+                def __init__(self):
+                    self._data = []
+
+                def all(self):
+                    return list(self._data)
+
+                def insert(self, d):
+                    # emulate tinydb.Document behaviour minimally
+                    d = dict(d)
+                    d['doc_id'] = len(self._data) + 1
+                    self._data.append(d)
+
+                def remove(self, **kwargs):
+                    # naive remove by doc_ids
+                    doc_ids = kwargs.get('doc_ids') or []
+                    if not doc_ids:
+                        return
+                    self._data = [d for d in self._data if d.get('doc_id') not in doc_ids]
+
+            db = _InMemoryDB()
 
         global en_lang, am_lang, om_lang, _
         try:
