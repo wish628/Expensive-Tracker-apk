@@ -96,12 +96,6 @@ KV = """
             padding: dp(12)
             size_hint_y: None
             height: dp(180)
-            canvas.before:
-                Color:
-                    rgba: app.theme_cls.primary_color[0], app.theme_cls.primary_color[1], app.theme_cls.primary_color[2], 0.08
-                Rectangle:
-                    pos: self.pos
-                    size: self.size
 
             # Total Amount Card
             MDBoxLayout:
@@ -184,12 +178,6 @@ KV = """
             padding: dp(16)
             size_hint_y: None
             height: dp(240)
-            canvas.before:
-                Color:
-                    rgba: 1, 1, 1, 1
-                Rectangle:
-                    pos: self.pos
-                    size: self.size
 
             # Form Title
             MDLabel:
@@ -209,7 +197,6 @@ KV = """
                 mode: "rectangle"
                 size_hint_y: None
                 height: dp(48)
-                icon_right: "currency-usd"
 
             # Category Input
             MDTextField:
@@ -218,7 +205,6 @@ KV = """
                 mode: "rectangle"
                 size_hint_y: None
                 height: dp(48)
-                icon_right: "tag"
                 helper_text: _("e.g., Food, Transport, Entertainment")
                 helper_text_mode: "on_focus"
 
@@ -230,7 +216,6 @@ KV = """
                 multiline: True
                 size_hint_y: None
                 height: dp(60)
-                icon_right: "note-text"
 
             # Action Buttons
             MDBoxLayout:
@@ -274,16 +259,12 @@ KV = """
                 icon: "download"
                 icon_size: "24sp"
                 on_release: app.export_database()
-                tooltip_text: _("Export Data")
-                pos_hint: {"center_y": 0.5}
 
             MDIconButton:
                 id: delete_all_button
                 icon: "delete-multiple"
                 icon_size: "24sp"
                 on_release: app.confirm_clear_database()
-                tooltip_text: _("Delete All")
-                pos_hint: {"center_y": 0.5}
 
         # Expense List with Scroll View
         ScrollView:
