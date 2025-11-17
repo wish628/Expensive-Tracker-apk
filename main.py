@@ -23,6 +23,7 @@ from tinydb import TinyDB
 from utils import validate_expense
 import traceback
 import sys
+import builtins
 
 # Set up gettext for internationalization
 current_language = 'en'  # Default language
@@ -31,6 +32,9 @@ current_language = 'en'  # Default language
 
 
 def _(s): return s  # Default no-op
+# Ensure KV parser and other evaluated contexts can see '_' even if
+# Builder.load_string evaluates expressions in a different namespace.
+builtins._ = _
 
 
 # Fallback dictionary-based translations (populated by load_all_translations)
@@ -50,8 +54,8 @@ def update_translations():
     if not app_instance or not hasattr(app_instance, 'localedir'):
         Logger.error(
             "Translation: App instance or localedir not available for update_translations.")
-
-        def _(s): return s
+        _ = lambda s: s
+        builtins._ = _
         return
 
     try:
@@ -61,13 +65,14 @@ def update_translations():
             languages=[current_language])
         lang_obj.install()
         _ = lang_obj.gettext
+        builtins._ = _
         Logger.info(
             f"Translation: Translations updated to: {current_language}")
     except Exception as e:
         Logger.error(
             f"Translation: Error updating translations for {current_language}: {e}")
-
-        def _(s): return s
+        _ = lambda s: s
+        builtins._ = _
 
 
 KV = """
@@ -80,7 +85,7 @@ KV = """
 
         MDTopAppBar:
             id: toolbar
-            title: _("Expense Tracker")
+            title: "Expense Tracker"
             elevation: 10
             md_bg_color: app.theme_cls.primary_color
             left_action_items: []
@@ -94,20 +99,20 @@ KV = """
 
             MDTextField:
                 id: amount
-                hint_text: _("Amount")
+                hint_text: "Amount"
                 input_filter: "float"
-                helper_text: _("Enter amount in ETB")
+                helper_text: "Enter amount in ETB"
                 helper_text_mode: "on_focus"
 
             MDTextField:
                 id: category
-                hint_text: _("Category")
-                helper_text: _("e.g., Food, Transport")
+                hint_text: "Category"
+                helper_text: "e.g., Food, Transport"
                 helper_text_mode: "on_focus"
 
         MDTextField:
             id: note
-            hint_text: _("Note (optional)")
+            hint_text: "Note (optional)"
             multiline: True
             mode: "rectangle"
             size_hint_y: None
@@ -121,7 +126,7 @@ KV = """
 
             MDRaisedButton:
                 id: add_button
-                text: _("Add Expense")
+                text: "Add Expense"
                 on_release: app.add_expense()
                 size_hint_x: 0.6
 
@@ -141,14 +146,14 @@ KV = """
             height: dp(36)
             MDLabel:
                 id: total_label
-                text: _("Total: ETB 0.00")
+                text: "Total: ETB 0.00"
                 halign: "left"
                 font_style: "H6"
                 theme_text_color: "Primary"
 
         MDLabel:
             id: expense_list_label
-            text: _("Expense List")
+            text: "Expense List"
             halign: "left"
             font_style: "Subtitle1"
             theme_text_color: "Secondary"
@@ -252,13 +257,15 @@ class ExpenseTrackerApp(MDApp):
                 om_lang = gettext.translation(
                     'app', self.localedir, languages=['om'])
                 _ = en_lang.gettext  # Set initial translation function
+                builtins._ = _
                 Logger.info(
                     "Translation: Initial English translations loaded in build().")
             except Exception as e:
                 Logger.error(
                     f"Translation: Error loading initial translations in build(): {e}")
 
-                def _(s): return s  # Fallback
+                _ = lambda s: s  # Fallback
+                builtins._ = _
 
             self.update_list()
             self.update_ui_texts()
@@ -408,6 +415,7 @@ class ExpenseTrackerApp(MDApp):
                 return _t
 
             _ = _gettext_factory('en', en_lang)
+            builtins._ = _
             Logger.info(
                 "Translation: All translation objects loaded successfully.")
         except Exception as e:
@@ -448,7 +456,8 @@ class ExpenseTrackerApp(MDApp):
             if lang_obj:
                 _ = _gettext_factory(lang_code, lang_obj)
             else:
-                def _(s): return s
+                _ = lambda s: s
+            builtins._ = _
 
             # Update UI texts if UI is available
             try:
